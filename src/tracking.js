@@ -55,19 +55,44 @@
    * @param {object} opt_options Optional configuration to the tracker.
    */
   tracking.initUserMedia_ = function(element, opt_options) {
-    window.navigator.getUserMedia({
-      video: true,
-      audio: opt_options.audio
-    }, function(stream) {
-        try {
-          element.src = window.URL.createObjectURL(stream);
-        } catch (err) {
-          element.src = stream;
+    var rearCameraSource = null;
+    MediaStreamTrack.getSources(function(sourceInfos) {
+      for (var i = 0; i != sourceInfos.length; ++i) {
+        var sourceInfo = sourceInfos[i];
+        if (sourceInfo.kind === 'video') {
+          console.log(sourceInfo.id, sourceInfo.label || 'camera');
+          if(sourceInfo.facing === "environment") {
+            rearCameraSource = sourceInfo.id;
+          }
+        } else {
+          // console.log('Some other kind of source: ', sourceInfo);
         }
-      }, function() {
-        throw Error('Cannot capture user camera.');
       }
-    );
+      cameraChosen(rearCameraSource);
+    });
+    var cameraChosen = function(rearCameraSource) {
+      var constraints = {
+        audio: opt_options.audio,
+        video: {
+          mandatory: {
+            minWidth: 1280,
+            minHeight: 720
+          },
+          optional: [{sourceId: rearCameraSource}]
+        }
+      }
+      window.navigator.getUserMedia(constraints, function(stream) {
+            window.stream = stream;
+            try {
+              element.src = window.URL.createObjectURL(stream);
+            } catch (err) {
+              element.src = stream;
+            }
+        }, function() {
+          throw Error('Cannot capture user camera.');
+        }
+      );
+    };
   };
 
   /**
